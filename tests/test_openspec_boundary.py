@@ -206,3 +206,13 @@ def test_external_issue_authority_is_manual_review_not_a_parser(tmp_path):
     assert any(
         finding["rule"] == "UNSAFE_AUTHORITY_REF" for finding in report["findings"]
     )
+
+    config["authorities"][0]["format"] = "issue"
+    config["authorities"].append(dict(config["authorities"][0]))
+    (project / "planning/planner.yaml").write_text(
+        yaml.safe_dump(config, sort_keys=False), encoding="utf-8"
+    )
+    report = json.loads(run_checker(project).stdout)
+    assert any(
+        finding["rule"] == "DUPLICATE_ADOPTED_ID" for finding in report["findings"]
+    )

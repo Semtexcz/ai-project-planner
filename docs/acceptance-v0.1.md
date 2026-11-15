@@ -34,8 +34,8 @@ uv run --locked pytest -m integration
 At the final recorded run:
 
 - `uv lock --check` passed.
-- Offline suite: **126 passed, 6 deselected**.
-- Integration suite: **6 passed, 126 deselected**.
+- Offline suite: **128 passed, 6 deselected**.
+- Integration suite: **6 passed, 128 deselected**.
 - Integration tests used disposable directories/HOME and network access to npm
   and GitHub. They did not modify any reference repository.
 - The checker was also exercised through its PEP 723 entry point with

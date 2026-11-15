@@ -440,3 +440,11 @@ def test_impossible_calendar_date_is_rejected(project):
     rewrite(project.root, TASK, task)
     report = check(project)
     assert ("EVIDENCE_DATE_INVALID", "error") in rules(report)
+
+
+def test_task_authorization_must_reference_an_accepted_decision(project):
+    decision = load_frontmatter(project.root / DECISION)
+    decision["execution"]["state"] = "proposed"
+    rewrite(project.root, DECISION, decision)
+    report = check(project)
+    assert ("AUTHORIZATION_NOT_ACCEPTED", "error") in rules(report)

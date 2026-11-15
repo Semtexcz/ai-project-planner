@@ -409,3 +409,12 @@ def test_duplicate_and_overlapping_authority_roots(project):
     )
     report = json.loads(run_checker(project.root).stdout)
     assert_rule(report, "OVERLAPPING_AUTHORITY_ROOTS")
+
+
+def test_unhashable_yaml_keys_are_reported_without_crashing(project):
+    (project.root / "planning/planner.yaml").write_text(
+        "schema_version: 1\n? [a, b]\n: value\n", encoding="utf-8"
+    )
+    result = run_checker(project.root)
+    assert result.returncode == 2
+    assert_rule(json.loads(result.stdout), "CONFIG_UNREADABLE")
