@@ -45,6 +45,14 @@ adoption trial. No release tag has been published.
 
 ### Fixed
 
+- An adopted record that reused a native or embedded ID produced `ID_COLLISION`
+  but left the colliding native task deterministically ready. Identity collisions
+  now block every ready task while the native record and its scope are preserved;
+  the adopted placeholder never replaces it.
+- Alias cycles, dangling aliases, a missing adopted source and an explicit native
+  authority that does not produce the matching record were errors but did not
+  block readiness. They are now project-wide readiness blockers like the other
+  identity and authority conflicts.
 - A task whose normative context pointed at an unparsed adopted authority could
   be reported deterministically ready. It is now `review_required`, matching the
   documented adopted-source trust boundary.

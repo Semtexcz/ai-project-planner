@@ -99,8 +99,13 @@ and `message`. Severities are `error`, `warning` and `manual_review`.
   placeholder cannot be approved, active or ready.
 - Readiness is a per-task conjunction over the task, its objective/strategy,
   parent milestone, cited requirements, approvals, decisions and dependencies.
-  Repository-level errors (duplicate IDs/authorities, cycles, multiple active
-  milestones, broken task order) block every ready task. `ready_tasks` contains
+  Repository-level errors block every ready task: duplicate IDs, aliases or
+  authorities; an adopted record whose ID collides with a native or embedded
+  record; alias cycles and dangling aliases; a missing adopted source; an
+  explicit native authority that does not produce the matching record;
+  overlapping authority roots; dependency cycles; multiple active milestones;
+  and a broken task order. An ambiguous project identity therefore never yields
+  a deterministically ready task. `ready_tasks` contains
   only deterministic native readiness; `review_required_tasks` separately lists
   tasks whose adopted/external or delegated authorization needs human review,
   including adopted tasks that have no native record at all (state `adopted`).

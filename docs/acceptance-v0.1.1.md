@@ -40,8 +40,9 @@ uv run --locked pytest -m integration
 At the final recorded run:
 
 - `uv lock --check` passed.
-- Offline suite: **146 passed, 6 deselected**.
-- Integration suite: **6 passed, 146 deselected**.
+- Offline suite: **149 passed, 6 deselected** (146 passed at the acceptance
+  pass; this review added three identity-conflict regression tests).
+- Integration suite: **6 passed, 149 deselected**.
 - Integration coverage includes the pinned BMAD install/reinstall/resolver, the
   native Agent Skills validator, the OpenSpec boundary checks, the deployed
   PEP 723 checker entry point, and the pinned ai-devkit coexistence check.
@@ -336,10 +337,64 @@ New offline tests (18 total) cover:
 - adopted normative context making a task `review_required`;
 - pure adoption listing adopted tasks as `review_required`.
 
-The full offline suite is 146 passed. The integration suite is 6 passed. The
+The post-acceptance review added three more offline tests (21 total in this
+change set):
+
+- an adopted ID collision with a native task keeps the native readiness entry,
+  reports `ID_COLLISION`, exits 1 and leaves `ready_tasks = []`;
+- an adopted ID collision with an embedded objective/outcome does the same;
+- a missing adopted source and an explicit native authority mismatch each block
+  every ready task.
+
+Alias-cycle and dangling-alias tests now also assert an empty `ready_tasks` and
+the corresponding global blocker.
+
+The full offline suite is 149 passed. The integration suite is 6 passed. The
 native Agent Skills validator accepts all six skills. The BMAD installer,
 reinstall and resolver checks pass. No test or live run modified a reference
 repository.
+
+## Post-acceptance review fix — ID_COLLISION blocked readiness
+
+A later review of the candidate found that `discover()` reported `ID_COLLISION`
+for an adopted record sharing an ID with a native record, but
+`GLOBAL_READINESS_ERRORS` did not include it. The colliding native `TASK-001`
+therefore stayed deterministically ready, and the regression test asserted that
+behaviour. Ambiguous project identity could authorize executable work.
+
+Changes in this review (working tree on top of `50c5071`):
+
+- `ID_COLLISION` now blocks readiness. The native record keeps its own
+  readiness entry and its native scope; the adopted placeholder never replaces
+  it, and no second entry appears for the same ID.
+- `ID_COLLISION` is also reported when an adopted ID collides with an embedded
+  objective or outcome, because `resolve()` prefers the embedded record.
+- The other project-wide identity conflicts were checked for the same hole.
+  `ALIAS_CYCLE`, `DANGLING_ALIAS`, `ADOPTED_SOURCE_MISSING` and
+  `ADOPTED_NATIVE_MISMATCH` were errors but were not readiness blockers; they
+  are now in `GLOBAL_READINESS_ERRORS`. Record-local duplicate criteria and
+  evidence IDs still block the affected task through its own findings, and a
+  duplicated package ID blocks the tasks that cite the milestone.
+
+Observed evidence from the review run:
+
+```bash
+uv run --locked pytest -m "not integration" -q
+# 149 passed, 6 deselected in 74.95s
+
+uv run --locked pytest -m integration -q
+# 6 passed, 149 deselected in 31.62s
+```
+
+The collision regression now asserts `exit_code == 1`, the `ID_COLLISION`
+finding, the native readiness entry with blocker `global: ID_COLLISION`,
+`ready_tasks == []` and the text summary `ready tasks none`. NEXT selects only
+from `ready_tasks`, so the colliding task cannot be selected. No live run was
+performed for this review; the evidence is offline checker and test output.
+
+A synthetic, sanitized illustration of the INIT → PLAN → NEXT output shape is in
+[`sample-init-plan-next.md`](sample-init-plan-next.md). It is labelled as an
+example, not as live-run or independent human acceptance evidence.
 
 ## Critical review findings
 
@@ -416,8 +471,9 @@ repository.
 ## Release readiness
 
 The v0.1.1 candidate is **ready for human product acceptance, with the Major
-limitations above explicitly accepted**. The three Blocking defects found by the
-live runs are fixed and regression-tested, and the preflight local-checkout
+limitations above explicitly accepted**. The Blocking defects found by the live
+runs and by the post-acceptance identity-collision review are fixed and
+regression-tested, and the preflight local-checkout
 defect found in critical review is fixed and tested. The residual risks are the
 `--overwrite` bypass (mitigated by preflight and documentation), the BMAD
 non-software design-packet step, the cost of one-slice promotion, and the

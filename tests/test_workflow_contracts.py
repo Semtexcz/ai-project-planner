@@ -698,7 +698,7 @@ def test_pure_adoption_lists_adopted_tasks_as_review_required(tmp_path):
     assert report["coverage"]["review_required_tasks"] == ["TASK-900"]
 
 
-def test_adopted_id_collision_does_not_replace_native_readiness(tmp_path):
+def test_adopted_id_collision_blocks_native_readiness(tmp_path):
     project = make_project(tmp_path / "collision").write()
     card = project.root / "docs/colliding-task.md"
     card.parent.mkdir(parents=True)
@@ -716,13 +716,118 @@ def test_adopted_id_collision_does_not_replace_native_readiness(tmp_path):
     )
     config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
 
-    report = json.loads(run_checker(project.root).stdout)
+    result = run_checker(project.root)
+    assert result.returncode == 1
+    report = json.loads(result.stdout)
     assert any(
         finding["rule"] == "ID_COLLISION" for finding in report["findings"]
     )
+
+    # The adopted placeholder never replaces the native record: TASK-001 keeps
+    # exactly one readiness entry, still describing the native contract.
+    assert set(report["coverage"]["task_readiness"]) == {"TASK-001"}
     readiness = report["coverage"]["task_readiness"]["TASK-001"]
     assert readiness["state"] == "ready"
-    assert readiness["ready"] is True
+    assert readiness["ready"] is False
+    assert "global: ID_COLLISION" in readiness["blockers"]
+
+    # NEXT selects only from ready_tasks, so an ambiguous identity yields no
+    # selectable work and the operator sees an explicit blocker set.
+    assert report["coverage"]["ready_tasks"] == []
+    text = run_checker(project.root, "text")
+    assert text.returncode == 1
+    assert "ready tasks none" in text.stdout
+
+
+def test_missing_adopted_source_blocks_every_ready_task(tmp_path):
+    project = make_project(tmp_path / "missing-adopted-source").write()
+    config_path = project.root / "planning/planner.yaml"
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    config["authorities"].append(
+        {
+            "kind": "requirement",
+            "id": "REQ-900",
+            "owner": "product_owner",
+            "ref": "docs/absent-requirement.md",
+            "format": "markdown",
+        }
+    )
+    config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+
+    result = run_checker(project.root)
+    assert result.returncode == 1
+    report = json.loads(result.stdout)
+    assert any(
+        finding["rule"] == "ADOPTED_SOURCE_MISSING" for finding in report["findings"]
+    )
+    assert report["coverage"]["ready_tasks"] == []
+    assert (
+        "global: ADOPTED_SOURCE_MISSING"
+        in report["coverage"]["task_readiness"]["TASK-001"]["blockers"]
+    )
+
+
+def test_adopted_id_collision_with_embedded_record_blocks_readiness(tmp_path):
+    project = make_project(tmp_path / "embedded-collision").write()
+    card = project.root / "docs/outcome-note.md"
+    card.parent.mkdir(parents=True)
+    card.write_text(
+        "# OUT-001\n\nAn adopted note reusing an embedded ID.\n", encoding="utf-8"
+    )
+    config_path = project.root / "planning/planner.yaml"
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    config["authorities"].append(
+        {
+            "kind": "requirement",
+            "id": "OUT-001",
+            "owner": "product_owner",
+            "ref": "docs/outcome-note.md",
+            "format": "markdown",
+        }
+    )
+    config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+
+    result = run_checker(project.root)
+    assert result.returncode == 1
+    report = json.loads(result.stdout)
+    collisions = [
+        finding for finding in report["findings"] if finding["rule"] == "ID_COLLISION"
+    ]
+    assert collisions
+    assert "embedded outcome" in collisions[0]["message"]
+    assert report["coverage"]["ready_tasks"] == []
+    assert (
+        "global: ID_COLLISION"
+        in report["coverage"]["task_readiness"]["TASK-001"]["blockers"]
+    )
+
+
+def test_explicit_native_mismatch_blocks_every_ready_task(tmp_path):
+    project = make_project(tmp_path / "native-mismatch").write()
+    config_path = project.root / "planning/planner.yaml"
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    config["authorities"].append(
+        {
+            "kind": "task",
+            "id": "TASK-777",
+            "owner": "task_owner",
+            "ref": "planning/tasks/TASK-001.md",
+            "format": "native",
+        }
+    )
+    config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+
+    result = run_checker(project.root)
+    assert result.returncode == 1
+    report = json.loads(result.stdout)
+    assert any(
+        finding["rule"] == "ADOPTED_NATIVE_MISMATCH" for finding in report["findings"]
+    )
+    assert report["coverage"]["ready_tasks"] == []
+    assert (
+        "global: ADOPTED_NATIVE_MISMATCH"
+        in report["coverage"]["task_readiness"]["TASK-001"]["blockers"]
+    )
 
 
 def test_cross_record_objective_error_blocks_task_readiness(project):

@@ -662,6 +662,18 @@ class PlannerCheck:
                 for outcome in objective.get("outcomes") or []:
                     if isinstance(outcome, dict):
                         self.add_embedded(outcome.get("id"), "outcome", strategy)
+        # An adopted record must not share an ID with an embedded objective or
+        # outcome: resolve() prefers the embedded record, so silently keeping
+        # both identities would make references ambiguous.
+        for adopted in self.adopted.values():
+            embedded = self.embedded.get(adopted.id)
+            if embedded is not None:
+                self.report.error(
+                    "ID_COLLISION",
+                    adopted.ref,
+                    f"adopted record {adopted.id} collides with an embedded "
+                    f"{embedded['kind']} record at {embedded['owner'].rel}",
+                )
 
     def add_embedded(self, embedded_id: object, kind: str, owner: Record) -> None:
         if not isinstance(embedded_id, str) or not ID_RE.match(embedded_id):
@@ -1939,11 +1951,19 @@ class PlannerCheck:
             visit(node, [])
 
     # ------------------------------------------------------------- coverage
+    # Project-wide identity and authority errors. Each one makes the mapping
+    # from a referenced ID to exactly one authoritative record ambiguous, so no
+    # task can be called deterministically ready while one is present.
     GLOBAL_READINESS_ERRORS = {
         "DUPLICATE_ID",
         "DUPLICATE_ALIAS",
         "DUPLICATE_AUTHORITY",
         "DUPLICATE_ADOPTED_ID",
+        "ID_COLLISION",
+        "ALIAS_CYCLE",
+        "DANGLING_ALIAS",
+        "ADOPTED_SOURCE_MISSING",
+        "ADOPTED_NATIVE_MISMATCH",
         "OVERLAPPING_AUTHORITY_ROOTS",
         "UNSAFE_AUTHORITY",
         "UNSAFE_AUTHORITY_ROOT",

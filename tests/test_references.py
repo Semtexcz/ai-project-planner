@@ -338,6 +338,11 @@ def test_aliases_resolve_and_dangling_alias_fails(project):
     )
     report = json.loads(run_checker(project.root).stdout)
     assert_rule(report, "DANGLING_ALIAS")
+    assert report["coverage"]["ready_tasks"] == []
+    assert (
+        "global: DANGLING_ALIAS"
+        in report["coverage"]["task_readiness"]["TASK-001"]["blockers"]
+    )
 
 
 def test_checker_is_read_only_and_does_not_execute_values(project):
@@ -463,6 +468,11 @@ def test_alias_cycles_are_diagnosed_without_crashing(project):
     assert result.returncode == 1
     report = json.loads(result.stdout)
     assert_rule(report, "ALIAS_CYCLE")
+    assert report["coverage"]["ready_tasks"] == []
+    assert (
+        "global: ALIAS_CYCLE"
+        in report["coverage"]["task_readiness"]["TASK-001"]["blockers"]
+    )
 
 
 def test_duplicate_and_overlapping_authority_roots(project):
