@@ -83,6 +83,8 @@ After explicit approval:
 
 - apply only the approved diff at the approved paths;
 - create/update records using the schemas and blank asset structure;
+- for each normative local context source, record the file's SHA-256 in the
+  context entry alongside the revision and purpose;
 - bind approvals to exact final `scope_sha256` values and accepted decisions;
 - invalidate affected prompts and reread references;
 - run the read-only checker and report findings;

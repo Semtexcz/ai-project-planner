@@ -1,5 +1,9 @@
 # v0.1 acceptance evidence
 
+> **Historical for v0.1.0.** The current candidate is v0.1.1; its hardening
+> evidence is in [`acceptance-v0.1.1.md`](acceptance-v0.1.1.md). This file is
+> retained unchanged as the v0.1.0 record.
+
 Date: 2026-11-15. Platform: Linux x86-64. Implementation model: DeepSeek V4.1
 Flash, reasoning HIGH. No OpenAI model was used for implementation, tests,
 reviews or repairs. No release tag was published.

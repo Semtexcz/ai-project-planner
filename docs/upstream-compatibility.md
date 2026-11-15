@@ -55,9 +55,11 @@ Disposable-template smoke test:
   them. Planner therefore keeps only the answers file as a Jinja template.
 - `--pretend` produced no destination files.
 - Copier does not infer ownership. A non-overlapping unknown file under
-  `.planner/` survived, but a matching managed path would be rendered over it.
-  The documented preflight (`test ! -e .planner && test ! -e
-  .copier-planner-answers.yml`) is mandatory.
+  `.planner/` survived. A matching managed path is refused without
+  `--overwrite` (exit non-zero, existing bytes preserved) and replaced when
+  `--overwrite` is passed. A refused copy can still leave partial state, so the
+  read-only `scripts/preflight_planner_install.py` and the dependency-free
+  existence check are mandatory before `copy`.
 
 ## BMAD METHOD 6.12.4
 

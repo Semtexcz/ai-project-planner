@@ -24,7 +24,10 @@ uv run --script .planner/scripts/check_planning.py --project . \
 ```
 
 A checker error blocks an affected task. A checker pass does not by itself make
-a task ready.
+a task ready. A normative context source with a recorded `sha256` that no longer
+matches is blocking; a matching hash remains fresh even when the recorded
+revision is older than the repository HEAD. A background context source cannot
+block readiness on revision distance alone.
 
 ## Procedure
 
@@ -34,6 +37,12 @@ Apply the full readiness conjunction in `governance.md`. Do not rely on the
 word `ready`. Exclude drafts, cancelled tasks, distant milestones, unauthorized
 scopes, unsatisfied dependencies, stale context, unresolved approvals and
 blocking audit findings.
+
+Adopted tasks have no native contract. They appear in `review_required_tasks`
+with `EXTERNAL_AUTHORITY_UNPARSED` (or `UNVERIFIED`). Do not treat that as ready.
+Explain the smallest reconciliation: confirm the card and freshness for one
+prompt, or promote one bounded slice to native records through INIT/PLAN, as
+described in `../../references/migration.md`.
 
 If work is already `in_progress` or `review`, recommend resuming or reviewing it
 before suggesting an additional start. Do not silently claim new capacity.
@@ -67,7 +76,8 @@ authoritative approved content. Include:
 - repository/source revision, task authority path and current scope digest;
 - recommended model: DeepSeek V4.1 Flash, reasoning HIGH; escalation to
   DeepSeek V4 Pro HIGH only under the recorded policy (advisory labels);
-- authoritative sources to reread, with normative versus background context;
+- authoritative sources to reread, with normative versus background context and
+  the recorded content hash where one exists;
 - verbatim/faithful objective, rationale and trace
   `VIS -> OBJ/OUT -> REQ -> MS -> [WP] -> TASK`;
 - exact deliverables, includes, excludes, constraints and prerequisites;

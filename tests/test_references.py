@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import shutil
 import subprocess
@@ -65,6 +66,83 @@ def test_missing_and_unsafe_context_paths(project):
     assert_rule(report, "UNSAFE_CONTEXT_PATH")
 
 
+def test_context_content_hash_overrides_older_revision(project):
+    from support import scope_digest
+
+    task = load_frontmatter(project.root / "planning/tasks/TASK-001.md")
+    context = task["scope"]["context"][0]
+    context["revision"] = "old-commit"
+    context["sha256"] = hashlib.sha256(
+        (project.root / context["ref"]).read_bytes()
+    ).hexdigest()
+    write_record(project.root / "planning/tasks/TASK-001.md", task)
+    decision = load_frontmatter(project.root / "planning/records/DEC-001.md")
+    for target in decision["scope"]["targets"]:
+        if target["record"] == "TASK-001":
+            target["scope_sha256"] = scope_digest(task["scope"])
+    write_record(project.root / "planning/records/DEC-001.md", decision)
+
+    report = json.loads(
+        run_checker(project.root, "json", "--source-revision", "new-commit").stdout
+    )
+    rules = {(finding["rule"], finding["severity"]) for finding in report["findings"]}
+    assert ("CONTEXT_REVISION_STALE", "warning") not in rules
+    assert report["coverage"]["ready_tasks"] == ["TASK-001"]
+
+
+def test_changed_normative_context_hash_blocks_readiness(project):
+    from support import scope_digest
+
+    task = load_frontmatter(project.root / "planning/tasks/TASK-001.md")
+    context = task["scope"]["context"][0]
+    context["revision"] = "old-commit"
+    context["sha256"] = hashlib.sha256(
+        (project.root / context["ref"]).read_bytes()
+    ).hexdigest()
+    write_record(project.root / "planning/tasks/TASK-001.md", task)
+    decision = load_frontmatter(project.root / "planning/records/DEC-001.md")
+    for target in decision["scope"]["targets"]:
+        if target["record"] == "TASK-001":
+            target["scope_sha256"] = scope_digest(task["scope"])
+    write_record(project.root / "planning/records/DEC-001.md", decision)
+    with (project.root / context["ref"]).open("a", encoding="utf-8") as handle:
+        handle.write("\nUnapproved appendix.\n")
+
+    report = json.loads(
+        run_checker(project.root, "json", "--source-revision", "new-commit").stdout
+    )
+    assert_rule(report, "CONTEXT_CONTENT_CHANGED")
+    assert report["coverage"]["ready_tasks"] == []
+
+
+def test_background_context_revision_does_not_block_readiness(project):
+    from support import scope_digest
+
+    task = load_frontmatter(project.root / "planning/tasks/TASK-001.md")
+    task["scope"]["context"].append(
+        {
+            "ref": "planning/roadmap.md",
+            "authority": "background",
+            "revision": "old-commit",
+            "purpose": "Historical roadmap view; not an obligation.",
+            "normative": False,
+        }
+    )
+    write_record(project.root / "planning/tasks/TASK-001.md", task)
+    decision = load_frontmatter(project.root / "planning/records/DEC-001.md")
+    for target in decision["scope"]["targets"]:
+        if target["record"] == "TASK-001":
+            target["scope_sha256"] = scope_digest(task["scope"])
+    write_record(project.root / "planning/records/DEC-001.md", decision)
+
+    report = json.loads(
+        run_checker(project.root, "json", "--source-revision", "new-commit").stdout
+    )
+    rules = {(finding["rule"], finding["severity"]) for finding in report["findings"]}
+    assert ("CONTEXT_REVISION_STALE", "warning") not in rules
+    assert report["coverage"]["ready_tasks"] == ["TASK-001"]
+
+
 def test_symlink_escape_is_rejected(project, tmp_path):
     outside = tmp_path.parent / f"{tmp_path.name}-outside"
     outside.mkdir(exist_ok=True)
@@ -80,6 +158,17 @@ def test_symlink_escape_is_rejected(project, tmp_path):
     (project.root / "planning/tasks/linked.md").symlink_to(outside / "secret.md")
     report = json.loads(run_checker(project.root).stdout)
     assert_rule(report, "SYMLINK_SKIPPED", "warning")
+
+
+def test_context_ref_to_directory_is_reported_without_crash(project):
+    task = load_frontmatter(project.root / "planning/tasks/TASK-001.md")
+    task["scope"]["context"][0]["ref"] = "planning"
+    task["scope"]["context"][0]["sha256"] = "0" * 64
+    write_record(project.root / "planning/tasks/TASK-001.md", task)
+    result = run_checker(project.root)
+    report = json.loads(result.stdout)
+    assert_rule(report, "CONTEXT_NOT_FILE")
+    assert result.returncode == 1
 
 
 def test_duplicate_record_id(project):

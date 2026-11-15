@@ -86,7 +86,17 @@ For native records:
 - Do not ask again for the same content under the same authority.
 
 The checker verifies the binding. It does not authenticate identity or consent.
-Git review and human process are the trust boundary.
+A matching digest proves content identity only; it cannot distinguish a human
+approval from a correctly hashed agent-written decision, and it is never
+cryptographic proof of consent. Git review and human process are the trust
+boundary.
+
+For a normative local context source, record the file's SHA-256 in the context
+entry when planning. A recorded hash that still matches is fresh even if the
+repository revision has moved; a changed hash blocks readiness until the source
+is reread and the scope is re-approved. A revision string alone is provenance,
+not freshness proof. Background context is non-normative and cannot block
+readiness merely because its revision string is older.
 
 For adopted records, bind approval to the existing immutable revision plus the
 exact section/item locator and content identity where available. A mutable URL

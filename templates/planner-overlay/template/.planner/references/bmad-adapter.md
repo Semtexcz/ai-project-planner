@@ -99,7 +99,7 @@ Example `_bmad/custom/bmad-prd.toml`:
 [workflow]
 persistent_facts = [
   "PLANNER: Treat file:{project-root}/.planner/references/governance.md as normative operation policy.",
-  "PLANNER: Read file:{project-root}/planning/planner.yaml as the authority map; never infer or overwrite authority.",
+  "PLANNER: Read file:{project-root}/planning/planner.yaml as the authority map when it exists; during first INIT it does not exist yet, so use the discovered authority summary and never infer or overwrite authority.",
   "PLANNER: Use one agent only. Do not spawn research, review or other subagents and do not make paid delegated model calls.",
   "PLANNER: Produce planning drafts only. Do not execute build/dev/apply workflows, publish, or write external trackers.",
   "PLANNER: Stop after the bounded planning result; do not continue into implementation.",
@@ -177,6 +177,15 @@ Translate the result through planner's canonical task contract: epics may
 suggest work packages, stories may suggest tasks. Preserve real deliverables,
 requirement references and dependencies. Do not force a software
 architecture/UX document when no deliverable depends on one.
+
+`bmad-create-epics-and-stories` step 1 expects a PRD, an architecture document
+and, when UI exists, a UX contract. Non-software projects have neither
+architecture nor UX by design. Do not fabricate them. Prepare a derived packet
+under `planning/runs/<run-id>/inputs/` that states why those inputs do not exist
+and supplies the deliverable and verification design the decomposition actually
+needs, marked `DERIVED INPUT - NOT AUTHORITATIVE`. Record the substitution as a
+compatibility observation. If the decomposition cannot proceed without a real
+architecture document, report the gap instead of inventing one.
 
 ### Readiness-only gate
 

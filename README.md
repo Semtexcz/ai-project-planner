@@ -23,11 +23,12 @@ client.
 
 ## Status
 
-Implementation of the v0.1 plan is present in this repository. Verification
-evidence, including unverified capabilities and platform limits, is recorded in
-[`docs/acceptance-v0.1.md`](docs/acceptance-v0.1.md). The overlay has not been
-published as a tagged release; installation from a tag requires a human to
-publish that tag first.
+Implementation of the v0.1 plan plus the v0.1.1 hardening pass is present in
+this repository. Verification evidence, including unverified capabilities and
+platform limits, is recorded in
+[`docs/acceptance-v0.1.md`](docs/acceptance-v0.1.md) and
+[`docs/acceptance-v0.1.1.md`](docs/acceptance-v0.1.1.md). No release tag has been
+published; installation from a tag requires a human to publish that tag first.
 
 ## Prerequisites
 
@@ -40,16 +41,32 @@ publish that tag first.
 ## Install the overlay
 
 Review the template source and destination first. Replace `<project>` with the
-target directory and `v0.1.0` with a tag a human has actually published.
+target directory and `v0.1.1` with a tag a human has actually published.
+
+Before any copy, run the read-only preflight. It stops on an existing `.planner/`
+or answers file that is not confirmed planner-owned:
+
+```bash
+# From a local checkout of the planner repository:
+uv run --script scripts/preflight_planner_install.py --destination <project>
+
+# Without a checkout, a basic existence check (it cannot distinguish owners):
+test ! -e <project>/.planner && test ! -e <project>/.copier-planner-answers.yml
+```
+
+Exit `0` is a fresh destination; `1` means a planner installation already exists
+and must be updated, not copied; `2` means an unowned, foreign, partial or
+symlinked collision and you must stop; `3` is an invalid destination or
+invocation. Then preview and copy:
 
 ```bash
 uvx copier==9.19.1 copy --pretend \
   --answers-file .copier-planner-answers.yml \
-  --vcs-ref v0.1.0 gh:Semtexcz/ai-project-planner "<project>"
+  --vcs-ref v0.1.1 gh:Semtexcz/ai-project-planner "<project>"
 
 uvx copier==9.19.1 copy \
   --answers-file .copier-planner-answers.yml \
-  --vcs-ref v0.1.0 gh:Semtexcz/ai-project-planner "<project>"
+  --vcs-ref v0.1.1 gh:Semtexcz/ai-project-planner "<project>"
 ```
 
 For a local checkout used during development, pass the repository path instead
@@ -61,11 +78,16 @@ uvx copier==9.19.1 copy --pretend --defaults \
   . "<project>"
 ```
 
+A local checkout with an arbitrary directory name is accepted by the preflight;
+pass `--expected-source <path-or-url>` when the exact source must match.
+
 `--pretend` previews native Copier actions. It is not a security boundary.
-Before copying, confirm that an existing `.planner/` or
-`.copier-planner-answers.yml` is not owned by another overlay or by unknown
-work. If any intended managed path has another owner, stop and report the
-conflict. Do not use force/overwrite.
+Never pass `--overwrite` or `--force` when `.planner/` or
+`.copier-planner-answers.yml` already exists. Native Copier 9.19.1 refuses a
+conflicting file without those flags, but a refused copy can still leave a
+partial destination; that is why the preflight comes first. With `--overwrite`
+Copier replaces matching managed files, so that flag is prohibited on an
+existing unowned path.
 
 A new empty target may receive the copy before its first commit. Initialize
 Git and commit the reviewed overlay before attempting upgrades. Existing
@@ -109,6 +131,15 @@ Exit `0` means deterministic checks completed without errors. It does not mean
 the plan is strategically sound. Exit `1` means a structural/approval invariant
 failed. Exit `2` means unreadable configuration, an unsupported schema or an
 invalid invocation. Manual-review gaps are printed in every mode.
+
+## Approval is content identity, not consent
+
+A matching `scope_sha256` proves that the approved content is byte-identical to
+the content being checked. It does **not** prove who approved it, that a human
+approved it, or that the approval was informed. The checker reports
+`APPROVAL_IDENTITY_UNVERIFIED` as a manual-review item; Git review, human
+process and repository access control are the trust boundary. Never describe a
+digest match as cryptographic proof of consent.
 
 ## Native BMAD planning
 
@@ -162,6 +193,7 @@ See [`docs/install-update.md`](docs/install-update.md) for details and
 ```text
 copier.yml
 templates/planner-overlay/template/.planner/   installed runtime
+scripts/preflight_planner_install.py           read-only install/update preflight
 docs/                                          architecture, operations, evidence
 tests/                                         offline + integration checks
 ```

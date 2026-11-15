@@ -35,7 +35,7 @@ import yaml
 from jsonschema import Draft202012Validator
 from yaml.constructor import ConstructorError
 
-CHECKER_VERSION = "0.1.0"
+CHECKER_VERSION = "0.1.1"
 REPORT_VERSION = 1
 RECORD_KINDS = ("strategy", "requirement", "milestone", "task", "decision", "change")
 ID_RE = re.compile(r"^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$")
@@ -871,10 +871,32 @@ class PlannerCheck:
                         loc,
                         f"context {ref!r} does not exist",
                     )
+                elif target is not None and not target.is_file():
+                    self.report.error(
+                        "CONTEXT_NOT_FILE",
+                        loc,
+                        f"context {ref!r} is not a regular file",
+                    )
                 else:
                     revision = str(context.get("revision", "")).strip()
-                    if (
-                        self.source_revision
+                    normative = context.get("normative", True) is not False
+                    recorded_hash = str(context.get("sha256", "")).strip()
+                    if target is not None and target.is_file() and recorded_hash:
+                        # Content identity beats revision distance: an unchanged
+                        # file is fresh even when the recorded revision is older.
+                        actual_hash = hashlib.sha256(target.read_bytes()).hexdigest()
+                        if actual_hash != recorded_hash:
+                            message = (
+                                f"context {ref!r} content differs from the hash recorded at "
+                                "planning time; re-read the source and re-approve the scope"
+                            )
+                            if normative:
+                                self.report.error("CONTEXT_CONTENT_CHANGED", loc, message)
+                            else:
+                                self.report.warning("CONTEXT_CONTENT_CHANGED", loc, message)
+                    elif (
+                        normative
+                        and self.source_revision
                         and revision
                         and revision not in {self.source_revision, "working-tree", "HEAD"}
                     ):
@@ -882,7 +904,8 @@ class PlannerCheck:
                             "CONTEXT_REVISION_STALE",
                             loc,
                             f"context {ref!r} revision {revision!r} differs from the requested "
-                            f"source revision {self.source_revision!r}",
+                            f"source revision {self.source_revision!r}, and no content hash is "
+                            "recorded; confirm the file is unchanged",
                         )
             self.check_criteria_and_verification(record, "acceptance")
         elif record.kind == "decision":
@@ -1986,6 +2009,21 @@ class PlannerCheck:
                     if resolved and resolved[0] == "record":
                         add_record(resolved[1])
                 if record.kind == "task":
+                    for context_entry in record.scope.get("context") or []:
+                        if not isinstance(context_entry, dict):
+                            continue
+                        if context_entry.get("normative", True) is False:
+                            continue
+                        context_ref = str(context_entry.get("ref", ""))
+                        if is_external_ref(context_ref) or context_ref.startswith(
+                            ("gh:", "issue:", "openspec:")
+                        ):
+                            continue
+                        context_target, context_problem = safe_relative(
+                            self.root, path_part(context_ref)
+                        )
+                        if context_problem is None and context_target is not None:
+                            locators.add(self.locator(context_target))
                     resolved = self.resolve(record.scope.get("objective"))
                     if resolved and resolved[0] == "embedded":
                         add_embedded(resolved[1]["owner"])
@@ -2096,6 +2134,36 @@ class PlannerCheck:
                 "manual_review": sorted(review),
                 "reasons": sorted(blockers | review),
             }
+
+        # Adopted tasks are authoritative but not parsed into native records.
+        # List them explicitly so NEXT can explain a complete blocker set instead
+        # of silently omitting work that exists outside planner's native schema.
+        for adopted in self.adopted.values():
+            if adopted.kind != "task":
+                continue
+            if adopted.id in self.records:
+                # ID_COLLISION is already reported; do not overwrite the native
+                # task's readiness with an adopted placeholder.
+                continue
+            rule = (
+                "EXTERNAL_AUTHORITY_UNVERIFIED"
+                if adopted.format == "issue"
+                else "EXTERNAL_AUTHORITY_UNPARSED"
+            )
+            readiness[adopted.id] = {
+                "state": "adopted",
+                "ready": False,
+                "review_required": True,
+                "blockers": [],
+                "manual_review": [rule],
+                "reasons": [
+                    (
+                        f"adopted {adopted.format} task is not parsed; reconcile its "
+                        "contract and freshness, or promote it to a native task"
+                    )
+                ],
+            }
+
         coverage = {
             "records_by_kind": {
                 kind: len(records) for kind, records in self.records_by_kind.items()

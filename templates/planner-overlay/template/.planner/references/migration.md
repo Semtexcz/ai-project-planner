@@ -93,6 +93,37 @@ rewrite the original repository's history. Git log/blame must still reach the
 original artifacts. Re-running the same migration detects existing mappings and
 creates no duplicates.
 
+## Promoting one adopted task (smallest usable slice)
+
+Pure adoption is correct when existing cards remain authoritative, but adopted
+tasks stay `review_required`: the checker cannot parse their contracts or verify
+their freshness, so NEXT cannot emit a deterministic ready prompt. If a human
+wants one executable prompt without converting the whole project, promote one
+bounded slice:
+
+1. Choose one task from the adopted order and record its source path, revision
+   and SHA-256.
+2. Promote the native chain that the task needs: objective/outcome, approved
+   requirement(s), active milestone and task. Preserve the legacy IDs where they
+   are already unique; do not renumber for style.
+3. Copy normative fields faithfully from the source. Do not add obligations,
+   exclusions or dependencies that were not in the approved source. Keep the
+   original files as normative `context` with `sha256`; they remain the source,
+   not a second authority.
+4. Remove only the promoted IDs from `authorities`. Never delete, move or rewrite
+   the original files.
+5. Bind a new accepted decision to the exact native `scope_sha256` values. Keep
+   the earlier adoption decision historical; do not rewrite it.
+6. Run the checker: the promoted task may be deterministically ready; unpromoted
+   adopted tasks remain in `review_required_tasks`. They are listed explicitly so
+   NEXT can explain the remaining blockers.
+
+Limits: an adoption decision that covered both promoted and unpromoted records
+will show `DECISION_TARGET_DRIFT` for the promoted targets. The model has no
+target-level supersession, so record the drift as historical and do not rewrite
+the decision. Promote one slice at a time; do not convert the whole backlog to
+make one prompt possible.
+
 ## State mapping examples
 
 | Original meaning | Native state | Caution |

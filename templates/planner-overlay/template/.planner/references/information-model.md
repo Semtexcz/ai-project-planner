@@ -46,7 +46,12 @@ Each criterion is `{id, statement}`. Each verification entry is
 `{id, criteria, method, subject_revision, result, artifact, reviewer,
 limitations, observed_at}` where `result` is `pass`, `fail` or `inconclusive`.
 A dependency is a record ID or `{gate, criterion, evidence_ref}`. A context
-entry is `{ref, authority, revision, purpose, normative}`.
+entry is `{ref, authority, revision, purpose, normative}`, with an optional
+`sha256` of the local file content. Record `sha256` for normative local context:
+a matching hash keeps the source fresh when the repository revision moves, and a
+changed hash blocks readiness until the source is reread and the scope
+re-approved. Background context (`normative: false`) cannot block readiness on a
+revision mismatch.
 
 | Kind | Normative `scope` | Operational `execution` |
 | --- | --- | --- |

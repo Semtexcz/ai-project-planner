@@ -235,6 +235,11 @@
         },
         "normative": {
           "type": "boolean"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "Optional content hash of the referenced local file at planning time. When present, freshness is checked against this exact content instead of a repository revision."
         }
       }
     },

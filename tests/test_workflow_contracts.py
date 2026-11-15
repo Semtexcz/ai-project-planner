@@ -627,6 +627,104 @@ def test_stale_context_revision_blocks_readiness(project):
     assert report["coverage"]["ready_tasks"] == []
 
 
+def test_adopted_normative_context_requires_review(tmp_path):
+    project = make_project(tmp_path / "adopted").write()
+    adopted = project.root / "docs/adopted.md"
+    adopted.parent.mkdir(parents=True)
+    adopted.write_text("# Adopted source\n\nStatus: proposed only.\n", encoding="utf-8")
+    config_path = project.root / "planning/planner.yaml"
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    config["authorities"].append(
+        {
+            "kind": "requirement",
+            "id": "ADOPT-1",
+            "owner": "product_owner",
+            "ref": "docs/adopted.md",
+            "format": "markdown",
+        }
+    )
+    config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+
+    task = load_frontmatter(project.root / "planning/tasks/TASK-001.md")
+    task["scope"]["context"].append(
+        {
+            "ref": "docs/adopted.md",
+            "authority": "adopted requirement",
+            "revision": "working-tree",
+            "purpose": "Adopted normative context whose status is not parsed.",
+            "normative": True,
+        }
+    )
+    write_record(project.root / "planning/tasks/TASK-001.md", task)
+    decision = load_frontmatter(project.root / "planning/records/DEC-001.md")
+    for target in decision["scope"]["targets"]:
+        if target["record"] == "TASK-001":
+            target["scope_sha256"] = scope_digest(task["scope"])
+    write_record(project.root / "planning/records/DEC-001.md", decision)
+
+    report = json.loads(run_checker(project.root).stdout)
+    readiness = report["coverage"]["task_readiness"]["TASK-001"]
+    assert readiness["ready"] is False
+    assert readiness["review_required"] is True
+    assert "EXTERNAL_AUTHORITY_UNPARSED" in readiness["manual_review"]
+    assert report["coverage"]["ready_tasks"] == []
+
+
+def test_pure_adoption_lists_adopted_tasks_as_review_required(tmp_path):
+    project = make_project(tmp_path / "adopted-task").write()
+    card = project.root / "docs/existing-task.md"
+    card.parent.mkdir(parents=True)
+    card.write_text("# TASK-900\n\nExisting card, status ready.\n", encoding="utf-8")
+    config_path = project.root / "planning/planner.yaml"
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    config["authorities"].append(
+        {
+            "kind": "task",
+            "id": "TASK-900",
+            "owner": "product_owner",
+            "ref": "docs/existing-task.md",
+            "format": "markdown",
+        }
+    )
+    config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+
+    report = json.loads(run_checker(project.root).stdout)
+    adopted = report["coverage"]["task_readiness"]["TASK-900"]
+    assert adopted["state"] == "adopted"
+    assert adopted["ready"] is False
+    assert adopted["review_required"] is True
+    assert "EXTERNAL_AUTHORITY_UNPARSED" in adopted["manual_review"]
+    assert report["coverage"]["ready_tasks"] == ["TASK-001"]
+    assert report["coverage"]["review_required_tasks"] == ["TASK-900"]
+
+
+def test_adopted_id_collision_does_not_replace_native_readiness(tmp_path):
+    project = make_project(tmp_path / "collision").write()
+    card = project.root / "docs/colliding-task.md"
+    card.parent.mkdir(parents=True)
+    card.write_text("# TASK-001\n\nA different adopted card.\n", encoding="utf-8")
+    config_path = project.root / "planning/planner.yaml"
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    config["authorities"].append(
+        {
+            "kind": "task",
+            "id": "TASK-001",
+            "owner": "product_owner",
+            "ref": "docs/colliding-task.md",
+            "format": "markdown",
+        }
+    )
+    config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+
+    report = json.loads(run_checker(project.root).stdout)
+    assert any(
+        finding["rule"] == "ID_COLLISION" for finding in report["findings"]
+    )
+    readiness = report["coverage"]["task_readiness"]["TASK-001"]
+    assert readiness["state"] == "ready"
+    assert readiness["ready"] is True
+
+
 def test_cross_record_objective_error_blocks_task_readiness(project):
     from support import load_frontmatter, write_record
 

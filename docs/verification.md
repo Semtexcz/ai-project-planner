@@ -86,9 +86,15 @@ and `message`. Severities are `error`, `warning` and `manual_review`.
 - Achieved milestones and done tasks cannot rest on failing or missing
   evidence.
 - Missing context files, traversal outside the project root, symlinked record
-  paths and unsafe authority roots.
+  paths and unsafe authority roots. Normative local context with a recorded
+  `sha256` is fresh when the content still matches, even at a newer repository
+  revision; a changed hash is an error. Background context is non-normative and
+  cannot block readiness on revision distance alone.
 - Explicit adopted records and unparsed Markdown are counted and reported for
-  manual review, never treated as silently verified.
+  manual review, never treated as silently verified. A normative context entry
+  that points at a configured adopted authority links that manual finding into
+  the task's readiness, so the task becomes `review_required` instead of
+  deterministically ready.
 - Placeholder `-000` records and placeholder configuration are flagged; a
   placeholder cannot be approved, active or ready.
 - Readiness is a per-task conjunction over the task, its objective/strategy,
@@ -96,9 +102,11 @@ and `message`. Severities are `error`, `warning` and `manual_review`.
   Repository-level errors (duplicate IDs/authorities, cycles, multiple active
   milestones, broken task order) block every ready task. `ready_tasks` contains
   only deterministic native readiness; `review_required_tasks` separately lists
-  tasks whose adopted/external or delegated authorization needs human review.
+  tasks whose adopted/external or delegated authorization needs human review,
+  including adopted tasks that have no native record at all (state `adopted`).
   Adopted-only projects therefore require a human freshness/authority
-  confirmation before NEXT emits an executable prompt.
+  confirmation or a bounded native promotion before NEXT emits an executable
+  prompt.
 
 ## What it deliberately does not do
 
@@ -114,6 +122,22 @@ and `message`. Severities are `error`, `warning` and `manual_review`.
 
 Those gaps appear as `manual_review` findings and are the AUDIT/agent review
 scope.
+
+## Install safety checks
+
+The offline suite covers the distribution boundary separately from the runtime
+checker:
+
+- `scripts/preflight_planner_install.py` is read-only and classifies a
+  destination as fresh, existing planner installation, or collision. It refuses
+  an unowned `.planner/`, a foreign overlay answers file, a partial installation
+  and a symlinked managed path.
+- Native Copier 9.19.1 is exercised against a colliding managed file without
+  `--overwrite`: the copy exits non-zero and the conflicting bytes are
+  preserved. A refused copy can still leave partial state, so the preflight is
+  mandatory and is not a substitute for reading the diff.
+- The template still contains no `_tasks`, `_migrations` or unsafe Jinja
+  extensions. The preflight is not a wrapper, hook or install-time command.
 
 ## Skill format validation
 

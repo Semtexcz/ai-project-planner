@@ -101,8 +101,11 @@ Before each write, check that the path does not exist. If it does, stop and
 report the collision. Never overwrite, reseed, delete or silently merge
 user-owned planning files.
 
-Do not write `AGENTS.md`, `README`, application manifests, CI, `_bmad/**`,
-`openspec/**` or another overlay's configuration.
+Do not write `AGENTS.md`, `README`, application manifests, CI, installed
+`_bmad/**` files, `openspec/**` or another overlay's configuration. Project-authored
+sparse overrides under `_bmad/custom/**` are a separate, reviewed operator setup
+step, not INIT planning content; if a human asks for them, record that setup
+separately and never edit installed BMAD skills or `_bmad/config.toml`.
 
 ### 7. Resume safely
 
