@@ -1,0 +1,61 @@
+{
+  "profile": "bookvoice-like",
+  "unique_task_ids": [
+    "TASK-019",
+    "TASK-037",
+    "TASK-073",
+    "TASK-074",
+    "TASK-075",
+    "TASK-076"
+  ],
+  "occurrences": {
+    "TASK-019": 1,
+    "TASK-037": 1,
+    "TASK-073": 1,
+    "TASK-074": 1,
+    "TASK-075": 2,
+    "TASK-076": 1
+  },
+  "blocking_edges": [
+    ["TASK-075", "TASK-019"],
+    ["TASK-075", "TASK-037"],
+    ["TASK-075", "TASK-073"],
+    ["TASK-075", "TASK-074"],
+    ["TASK-073", "TASK-019"],
+    ["TASK-074", "TASK-019"],
+    ["TASK-037", "TASK-019"]
+  ],
+  "related_edges": [
+    ["TASK-075", "TASK-076"],
+    ["TASK-076", "TASK-075"],
+    ["TASK-073", "TASK-074"],
+    ["TASK-019", "TASK-037"]
+  ],
+  "artifact_gates": [
+    ["TASK-075", "docs/contracts/sync-contract.md"]
+  ],
+  "duplicates": ["TASK-075"],
+  "not_ready": ["TASK-076"],
+  "done_with_evidence_limits": ["TASK-073", "TASK-075"],
+  "must_preserve": [
+    "project/README.md",
+    "project/ready/TASK-075.md",
+    "project/done/TASK-075.md",
+    "project/done/TASK-073.md",
+    "project/done/TASK-074.md",
+    "project/done/TASK-019.md",
+    "project/done/TASK-037.md",
+    "project/backlog/TASK-076.md",
+    "docs/TASK_SEQUENCE.md",
+    "docs/ROADMAP.md",
+    "docs/contracts/sync-contract.md"
+  ],
+  "adopted_priority": {
+    "TASK-019": "P0",
+    "TASK-037": "P1",
+    "TASK-073": "P0",
+    "TASK-074": "P0",
+    "TASK-075": "P1",
+    "TASK-076": "P2"
+  }
+}

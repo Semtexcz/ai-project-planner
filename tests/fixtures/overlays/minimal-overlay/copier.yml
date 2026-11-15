@@ -1,0 +1,10 @@
+---
+# Minimal independent overlay fixture used to prove two disjoint Copier
+# lineages. It is not a planner template and is never shipped to users.
+_subdirectory: templates/overlay
+_answers_file: .copier-second-answers.yml
+_min_copier_version: "9.19.1"
+
+second_name:
+  type: str
+  default: second

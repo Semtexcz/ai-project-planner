@@ -1,0 +1,14 @@
+---
+# Planner overlay template configuration.
+#
+# The template renders ONLY the managed runtime under .planner/ plus its own
+# answers file. Project-owned planning records are created by INIT and are
+# never rendered, deleted or merged by Copier.
+_subdirectory: templates/planner-overlay/template
+_answers_file: .copier-planner-answers.yml
+_min_copier_version: "9.19.1"
+
+project_name:
+  type: str
+  help: Display name of the project this overlay belongs to. Local strategy and planning decisions do not belong here.
+  default: ""

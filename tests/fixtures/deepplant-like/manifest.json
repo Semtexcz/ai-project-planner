@@ -1,0 +1,31 @@
+{
+  "profile": "deepplant-like",
+  "authorities": {
+    "vision": "VISION.md",
+    "strategy": "docs/dev/planning/strategy.md",
+    "product": "docs/dev/planning/product.md",
+    "roadmap": "docs/dev/planning/roadmap.md",
+    "governance_index": "docs/dev/planning/index.md",
+    "semantic_core_adr": "docs/adr/ADR-001-semantic-core.md",
+    "constraint": "docs/contracts/process-physical-model.md"
+  },
+  "current_milestone": "reviewed process model for one bounded subsystem",
+  "future_directions": ["simulation", "control integration"],
+  "historical_gates": ["GATE-2025-01"],
+  "issue_coverage": {
+    "available": ["ISSUE-101"],
+    "unavailable": ["ISSUE-102"]
+  },
+  "must_preserve": [
+    "VISION.md",
+    "docs/dev/planning/strategy.md",
+    "docs/dev/planning/product.md",
+    "docs/dev/planning/roadmap.md",
+    "docs/dev/planning/index.md",
+    "docs/adr/ADR-001-semantic-core.md",
+    "docs/contracts/process-physical-model.md",
+    "docs/dev/planning/gates/GATE-2025-01.md",
+    "issues/ISSUE-101.md"
+  ],
+  "unauthorized_future_work": "a future simulation task must be rejected as current scope or retained only as a change proposal"
+}

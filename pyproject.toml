@@ -1,0 +1,31 @@
+[project]
+name = "ai-project-planner"
+version = "0.1.0"
+description = "Portable, Git-native project and product planning overlay with six bounded Agent Skills."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Daniel Kopecký" }]
+dependencies = []
+
+[dependency-groups]
+dev = [
+  "copier==9.19.1",
+  "jsonschema==4.25.1",
+  "pytest==8.4.2",
+  "pyyaml==6.0.3",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+markers = [
+  "integration: requires npm/network or a disposable native installer; excluded from the offline suite",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100

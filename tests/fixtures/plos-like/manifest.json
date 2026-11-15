@@ -1,0 +1,42 @@
+{
+  "profile": "plos-like",
+  "authorities": {
+    "charter": "01-charter/charter.md",
+    "requirements": "02-requirements/high-level-requirements.md",
+    "glossary": "03-domain/glossary.md",
+    "diagrams": "03-domain/diagrams.md",
+    "decisions": "04-decisions/decision-log.md",
+    "hypotheses": "05-hypotheses/hypotheses.md",
+    "iterations": "06-iterations/iterations.md",
+    "review": "07-reviews/semantic-review.md"
+  },
+  "classification": {
+    "Z-01": "mandated",
+    "Z-02": "mandated",
+    "CON-01": "constraint",
+    "N-FR-01": "proposed",
+    "N-FR-02": "proposed",
+    "N-QR-01": "proposed",
+    "D-01": "design_decision",
+    "D-02": "design_decision",
+    "H-01": "hypothesis"
+  },
+  "iterations": {
+    "I1": "complete",
+    "I2": "complete",
+    "I3": "proposed"
+  },
+  "i3_active": false,
+  "software_artifacts_required": false,
+  "must_preserve": [
+    "README.md",
+    "01-charter/charter.md",
+    "02-requirements/high-level-requirements.md",
+    "03-domain/glossary.md",
+    "03-domain/diagrams.md",
+    "04-decisions/decision-log.md",
+    "05-hypotheses/hypotheses.md",
+    "06-iterations/iterations.md",
+    "07-reviews/semantic-review.md"
+  ]
+}

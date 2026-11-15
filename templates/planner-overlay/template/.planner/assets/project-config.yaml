@@ -1,0 +1,70 @@
+# Project-owned planner configuration seed.
+#
+# INIT copies this file to planning/planner.yaml after reviewing the project's
+# intent and existing authorities. It is never rendered by Copier and never
+# overwritten by an overlay update.
+#
+# Keep this file a map of pointers and roles. Do not copy requirement text,
+# task states, estimates or roadmap outcomes into it.
+
+schema_version: 1
+project_id: replace-me
+name: Replace me
+category: software # software | engineering | methodology
+content_root: planning
+
+# Role keys are referenced by every record's `owner` field. Replace the value
+# with a named accountable person or a role the project actually uses.
+roles:
+  product_owner: Replace with the accountable Product Owner
+  task_owner: Replace with the accountable task owner role
+  domain_reviewer: Replace with the named domain reviewer role
+
+# Native collections and explicit adopted records. One concept has exactly one
+# authoritative location. Do not mirror external state here.
+authorities:
+  - kind: strategy
+    owner: product_owner
+    root: planning/strategy.md
+  - kind: requirement
+    owner: product_owner
+    root: planning/requirements
+  - kind: milestone
+    owner: product_owner
+    root: planning/milestones
+  - kind: task
+    owner: task_owner
+    root: planning/tasks
+  - kind: decision
+    owner: product_owner
+    root: planning/records
+  - kind: change
+    owner: product_owner
+    root: planning/records
+  - kind: roadmap
+    owner: product_owner
+    root: planning/roadmap.md
+
+# Optional legacy names mapping to one canonical record. Duplicate mappings are
+# errors. Example:
+# aliases:
+#   - id: FR-01
+#     target: REQ-001
+#     note: Legacy identifier retained from the imported specification.
+aliases: []
+
+# Index reference only. It must agree with the single authoritative active
+# milestone; it never independently authorizes activation.
+current_milestone: null
+
+# Explicit order wins. Otherwise eligible tasks order by priority, then
+# roadmap/package order, then stable task ID.
+task_order: []
+ordering_policy: priority,roadmap,id
+
+verification_profiles:
+  - software # software | engineering | methodology
+
+review_policy:
+  periodic_review: weekly while the project is active
+  milestone_activation_requires_product_owner: true

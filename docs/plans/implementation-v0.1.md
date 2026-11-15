@@ -1,5 +1,13 @@
 # AI Project Planner v0.1 — implementation plan
 
+> **Implementation status (2026-11-15):** implemented in this repository. This
+> document remains the approved architecture and boundary; after implementation
+> it is historical. Actual test results, integration observations, limitations
+> and pending human acceptance are recorded in
+> [`docs/acceptance-v0.1.md`](../acceptance-v0.1.md) and
+> [`docs/upstream-compatibility.md`](../upstream-compatibility.md). Do not read
+> this plan as a claim that every acceptance gate has passed.
+
 Date: 2026-11-15 (Europe/Prague). Repository: `Semtexcz/ai-project-planner`.
 
 This is an architecture and implementation handoff, not an implementation or a release claim. Only this plan was authored during the assignment. No reference repository was changed, no upstream installer was run, and no paid model or implementation agent was invoked. The empty destination repository had no commits at inspection time.

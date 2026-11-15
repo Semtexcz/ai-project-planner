@@ -1,0 +1,1223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Semtexcz/ai-project-planner/schemas/record.schema.json",
+  "title": "Planner native record",
+  "description": "Discriminated native record. Normative content lives in scope; execution holds state, blockers, evidence and progress notes. Markdown body cannot add permission or acceptance criteria.",
+  "type": "object",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/strategyRecord"
+    },
+    {
+      "$ref": "#/$defs/requirementRecord"
+    },
+    {
+      "$ref": "#/$defs/milestoneRecord"
+    },
+    {
+      "$ref": "#/$defs/taskRecord"
+    },
+    {
+      "$ref": "#/$defs/decisionRecord"
+    },
+    {
+      "$ref": "#/$defs/changeRecord"
+    }
+  ],
+  "$defs": {
+    "recordId": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+$"
+    },
+    "nonEmpty": {
+      "type": "string",
+      "minLength": 1
+    },
+    "stringList": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/nonEmpty"
+      }
+    },
+    "idList": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/recordId"
+      }
+    },
+    "date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "localCriterionId": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*:[A-Z]+-[0-9]+$"
+    },
+    "criterion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "statement"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/localCriterionId"
+        },
+        "statement": {
+          "$ref": "#/$defs/nonEmpty"
+        }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "criteria",
+        "method",
+        "expected_evidence",
+        "reviewer"
+      ],
+      "properties": {
+        "criteria": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/localCriterionId"
+          }
+        },
+        "method": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "expected_evidence": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "reviewer": {
+          "$ref": "#/$defs/nonEmpty"
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "criteria",
+        "method",
+        "subject_revision",
+        "result",
+        "artifact",
+        "reviewer",
+        "limitations",
+        "observed_at"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*:EV-[0-9]+$"
+        },
+        "criteria": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/localCriterionId"
+          }
+        },
+        "method": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "subject_revision": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "result": {
+          "enum": [
+            "pass",
+            "fail",
+            "inconclusive"
+          ]
+        },
+        "artifact": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "reviewer": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "limitations": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "observed_at": {
+          "$ref": "#/$defs/date"
+        }
+      }
+    },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "decision"
+      ],
+      "properties": {
+        "decision": {
+          "$ref": "#/$defs/recordId"
+        },
+        "required_by": {
+          "type": "string"
+        },
+        "consequence": {
+          "type": "string"
+        },
+        "stop_point": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "approvals": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/approval"
+      }
+    },
+    "dependency": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/recordId"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "gate",
+            "criterion",
+            "evidence_ref"
+          ],
+          "properties": {
+            "gate": {
+              "$ref": "#/$defs/nonEmpty"
+            },
+            "criterion": {
+              "$ref": "#/$defs/nonEmpty"
+            },
+            "evidence_ref": {
+              "$ref": "#/$defs/nonEmpty"
+            }
+          }
+        }
+      ]
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ref",
+        "authority",
+        "revision",
+        "purpose",
+        "normative"
+      ],
+      "properties": {
+        "ref": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "authority": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "revision": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "purpose": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "normative": {
+          "type": "boolean"
+        }
+      }
+    },
+    "deliverable": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "description"
+      ],
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "description": {
+          "$ref": "#/$defs/nonEmpty"
+        }
+      }
+    },
+    "package": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "outcome",
+        "include",
+        "exclude"
+      ],
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/recordId"
+        },
+        "outcome": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "include": {
+          "$ref": "#/$defs/stringList"
+        },
+        "exclude": {
+          "$ref": "#/$defs/stringList"
+        }
+      }
+    },
+    "blocker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "description"
+      ],
+      "properties": {
+        "description": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "ref": {
+          "type": "string"
+        }
+      }
+    },
+    "blockers": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/blocker"
+      }
+    },
+    "progressNotes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/nonEmpty"
+      }
+    },
+    "objectiveRef": {
+      "type": "string",
+      "pattern": "^(OBJ|OUT)-[A-Z0-9]+$"
+    },
+    "strategyObjective": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "statement",
+        "outcomes"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^OBJ-[A-Z0-9]+$"
+        },
+        "statement": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "outcomes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "description",
+              "baseline",
+              "target_or_rubric",
+              "verification",
+              "review_horizon"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^OUT-[A-Z0-9]+$"
+              },
+              "description": {
+                "$ref": "#/$defs/nonEmpty"
+              },
+              "baseline": {
+                "$ref": "#/$defs/nonEmpty"
+              },
+              "target_or_rubric": {
+                "$ref": "#/$defs/nonEmpty"
+              },
+              "verification": {
+                "$ref": "#/$defs/nonEmpty"
+              },
+              "review_horizon": {
+                "$ref": "#/$defs/nonEmpty"
+              }
+            }
+          }
+        }
+      }
+    },
+    "strategyItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "proposed",
+            "active",
+            "achieved",
+            "retired"
+          ]
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "strategyScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "purpose",
+        "beneficiaries",
+        "problem",
+        "choices",
+        "exclusions",
+        "assumptions",
+        "objectives"
+      ],
+      "properties": {
+        "purpose": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "beneficiaries": {
+          "$ref": "#/$defs/stringList"
+        },
+        "problem": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "choices": {
+          "$ref": "#/$defs/stringList"
+        },
+        "exclusions": {
+          "$ref": "#/$defs/stringList"
+        },
+        "assumptions": {
+          "$ref": "#/$defs/stringList"
+        },
+        "objectives": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/strategyObjective"
+          }
+        }
+      }
+    },
+    "strategyExecution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "items",
+        "approvals",
+        "progress_notes"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "proposed",
+            "approved",
+            "superseded"
+          ]
+        },
+        "items": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/strategyItem"
+          }
+        },
+        "approvals": {
+          "$ref": "#/$defs/approvals"
+        },
+        "progress_notes": {
+          "$ref": "#/$defs/progressNotes"
+        }
+      }
+    },
+    "requirementScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "statement",
+        "classification",
+        "objectives",
+        "sources",
+        "acceptance",
+        "verification",
+        "supersedes"
+      ],
+      "properties": {
+        "statement": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "classification": {
+          "enum": [
+            "functional",
+            "quality",
+            "constraint"
+          ]
+        },
+        "objectives": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/objectiveRef"
+          }
+        },
+        "sources": {
+          "$ref": "#/$defs/stringList",
+          "minItems": 1
+        },
+        "acceptance": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/criterion"
+          }
+        },
+        "verification": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/verification"
+          }
+        },
+        "supersedes": {
+          "$ref": "#/$defs/idList"
+        }
+      }
+    },
+    "requirementExecution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "evidence",
+        "blockers",
+        "progress_notes",
+        "approvals"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "proposed",
+            "approved",
+            "retired"
+          ]
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        },
+        "blockers": {
+          "$ref": "#/$defs/blockers"
+        },
+        "progress_notes": {
+          "$ref": "#/$defs/progressNotes"
+        },
+        "approvals": {
+          "$ref": "#/$defs/approvals"
+        }
+      }
+    },
+    "milestoneScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "outcome",
+        "objectives",
+        "outcomes",
+        "requirements",
+        "depends_on",
+        "exit_criteria",
+        "verification",
+        "packages"
+      ],
+      "properties": {
+        "outcome": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "objectives": {
+          "$ref": "#/$defs/stringList",
+          "minItems": 1
+        },
+        "outcomes": {
+          "$ref": "#/$defs/stringList",
+          "minItems": 1
+        },
+        "requirements": {
+          "$ref": "#/$defs/idList",
+          "minItems": 1
+        },
+        "depends_on": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dependency"
+          }
+        },
+        "exit_criteria": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/criterion"
+          }
+        },
+        "verification": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/verification"
+          }
+        },
+        "packages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/package"
+          }
+        }
+      }
+    },
+    "milestoneExecution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "evidence",
+        "blockers",
+        "progress_notes",
+        "approvals"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "proposed",
+            "approved",
+            "active",
+            "achieved",
+            "retired"
+          ]
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        },
+        "blockers": {
+          "$ref": "#/$defs/blockers"
+        },
+        "progress_notes": {
+          "$ref": "#/$defs/progressNotes"
+        },
+        "approvals": {
+          "$ref": "#/$defs/approvals"
+        }
+      }
+    },
+    "taskScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "objective",
+        "rationale",
+        "milestone",
+        "requirements",
+        "include",
+        "exclude",
+        "depends_on",
+        "context",
+        "deliverables",
+        "acceptance",
+        "verification",
+        "approvals",
+        "priority",
+        "size"
+      ],
+      "properties": {
+        "title": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "objective": {
+          "$ref": "#/$defs/objectiveRef"
+        },
+        "rationale": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "milestone": {
+          "$ref": "#/$defs/recordId"
+        },
+        "package": {
+          "$ref": "#/$defs/recordId"
+        },
+        "requirements": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/recordId"
+          }
+        },
+        "include": {
+          "$ref": "#/$defs/stringList",
+          "minItems": 1
+        },
+        "exclude": {
+          "$ref": "#/$defs/stringList",
+          "minItems": 1
+        },
+        "depends_on": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/dependency"
+          }
+        },
+        "context": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/context"
+          }
+        },
+        "deliverables": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/deliverable"
+          }
+        },
+        "acceptance": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/criterion"
+          }
+        },
+        "verification": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/verification"
+          }
+        },
+        "approvals": {
+          "$ref": "#/$defs/approvals"
+        },
+        "priority": {
+          "enum": [
+            "P0",
+            "P1",
+            "P2"
+          ]
+        },
+        "size": {
+          "enum": [
+            "XS",
+            "S",
+            "M",
+            "L",
+            "XL"
+          ]
+        }
+      }
+    },
+    "taskExecution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "authorization",
+        "evidence",
+        "blockers",
+        "progress_notes"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "draft",
+            "ready",
+            "in_progress",
+            "review",
+            "done",
+            "blocked",
+            "cancelled"
+          ]
+        },
+        "authorization": {
+          "$ref": "#/$defs/idList"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        },
+        "blockers": {
+          "$ref": "#/$defs/blockers"
+        },
+        "progress_notes": {
+          "$ref": "#/$defs/progressNotes"
+        }
+      }
+    },
+    "decisionScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "topic",
+        "rationale",
+        "options",
+        "choice",
+        "targets",
+        "authority",
+        "supersedes"
+      ],
+      "properties": {
+        "topic": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "rationale": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "options": {
+          "$ref": "#/$defs/stringList"
+        },
+        "choice": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "record",
+              "scope_sha256"
+            ],
+            "properties": {
+              "record": {
+                "$ref": "#/$defs/recordId"
+              },
+              "scope_sha256": {
+                "$ref": "#/$defs/sha256"
+              }
+            }
+          }
+        },
+        "authority": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "delegation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "covers",
+            "exclusions",
+            "permitted_decisions",
+            "stop_conditions"
+          ],
+          "properties": {
+            "covers": {
+              "$ref": "#/$defs/idList"
+            },
+            "exclusions": {
+              "$ref": "#/$defs/stringList"
+            },
+            "permitted_decisions": {
+              "$ref": "#/$defs/stringList"
+            },
+            "stop_conditions": {
+              "$ref": "#/$defs/stringList"
+            }
+          }
+        },
+        "supersedes": {
+          "$ref": "#/$defs/idList"
+        }
+      }
+    },
+    "decisionExecution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "actor",
+        "decided_at",
+        "approval_source"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "proposed",
+            "accepted",
+            "rejected",
+            "superseded"
+          ]
+        },
+        "actor": {
+          "type": "string"
+        },
+        "decided_at": {
+          "type": "string"
+        },
+        "approval_source": {
+          "type": "string"
+        },
+        "applied_revision": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "changeScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "idea",
+        "source",
+        "affected",
+        "impact",
+        "alternatives",
+        "proposed_delta",
+        "required_approvals"
+      ],
+      "properties": {
+        "idea": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "source": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "affected": {
+          "$ref": "#/$defs/idList"
+        },
+        "impact": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "alternatives": {
+          "$ref": "#/$defs/stringList"
+        },
+        "proposed_delta": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "required_approvals": {
+          "$ref": "#/$defs/stringList"
+        },
+        "revisit_trigger": {
+          "type": "string"
+        }
+      }
+    },
+    "changeExecution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "disposition_decision",
+        "applied_revision",
+        "blockers",
+        "progress_notes"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "captured",
+            "assessed",
+            "approved",
+            "rejected",
+            "deferred",
+            "applied"
+          ]
+        },
+        "disposition_decision": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "applied_revision": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "blockers": {
+          "$ref": "#/$defs/blockers"
+        },
+        "progress_notes": {
+          "$ref": "#/$defs/progressNotes"
+        }
+      }
+    },
+    "baseProperties": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "kind": {
+          "enum": [
+            "strategy",
+            "requirement",
+            "milestone",
+            "task",
+            "decision",
+            "change"
+          ]
+        },
+        "id": {
+          "$ref": "#/$defs/recordId"
+        },
+        "owner": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "extensions": {
+          "type": "object"
+        }
+      }
+    },
+    "strategyRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "id",
+        "owner",
+        "scope",
+        "execution"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "kind": {
+          "const": "strategy"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^VIS-[A-Z0-9]+$"
+        },
+        "owner": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "scope": {
+          "$ref": "#/$defs/strategyScope"
+        },
+        "execution": {
+          "$ref": "#/$defs/strategyExecution"
+        },
+        "extensions": {
+          "type": "object"
+        }
+      }
+    },
+    "requirementRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "id",
+        "owner",
+        "scope",
+        "execution"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "kind": {
+          "const": "requirement"
+        },
+        "id": {
+          "$ref": "#/$defs/recordId"
+        },
+        "owner": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "scope": {
+          "$ref": "#/$defs/requirementScope"
+        },
+        "execution": {
+          "$ref": "#/$defs/requirementExecution"
+        },
+        "extensions": {
+          "type": "object"
+        }
+      }
+    },
+    "milestoneRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "id",
+        "owner",
+        "scope",
+        "execution"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "kind": {
+          "const": "milestone"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^MS-[A-Z0-9]+$"
+        },
+        "owner": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "scope": {
+          "$ref": "#/$defs/milestoneScope"
+        },
+        "execution": {
+          "$ref": "#/$defs/milestoneExecution"
+        },
+        "extensions": {
+          "type": "object"
+        }
+      }
+    },
+    "taskRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "id",
+        "owner",
+        "scope",
+        "execution"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "kind": {
+          "const": "task"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^TASK-[A-Z0-9]+$"
+        },
+        "owner": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "scope": {
+          "$ref": "#/$defs/taskScope"
+        },
+        "execution": {
+          "$ref": "#/$defs/taskExecution"
+        },
+        "extensions": {
+          "type": "object"
+        }
+      }
+    },
+    "decisionRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "id",
+        "owner",
+        "scope",
+        "execution"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "kind": {
+          "const": "decision"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^DEC-[A-Z0-9]+$"
+        },
+        "owner": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "scope": {
+          "$ref": "#/$defs/decisionScope"
+        },
+        "execution": {
+          "$ref": "#/$defs/decisionExecution"
+        },
+        "extensions": {
+          "type": "object"
+        }
+      }
+    },
+    "changeRecord": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "kind",
+        "id",
+        "owner",
+        "scope",
+        "execution"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "kind": {
+          "const": "change"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^CHG-[A-Z0-9]+$"
+        },
+        "owner": {
+          "$ref": "#/$defs/nonEmpty"
+        },
+        "scope": {
+          "$ref": "#/$defs/changeScope"
+        },
+        "execution": {
+          "$ref": "#/$defs/changeExecution"
+        },
+        "extensions": {
+          "type": "object"
+        }
+      }
+    }
+  }
+}
