@@ -92,9 +92,10 @@ and `message`. Severities are `error`, `warning` and `manual_review`.
   cannot block readiness on revision distance alone.
 - Explicit adopted records and unparsed Markdown are counted and reported for
   manual review, never treated as silently verified. A normative context entry
-  that points at a configured adopted authority links that manual finding into
-  the task's readiness, so the task becomes `review_required` instead of
-  deterministically ready.
+  that points at a configured adopted authority or at an unparsed Markdown file
+  inside a native authority collection links that manual finding into the task's
+  readiness, so the task becomes `review_required` instead of deterministically
+  ready. Background context does not create that link.
 - Placeholder `-000` records and placeholder configuration are flagged; a
   placeholder cannot be approved, active or ready.
 - Readiness is a per-task conjunction over the task, its objective/strategy,
@@ -105,7 +106,14 @@ and `message`. Severities are `error`, `warning` and `manual_review`.
   explicit native authority that does not produce the matching record;
   overlapping authority roots; dependency cycles; multiple active milestones;
   and a broken task order. An ambiguous project identity therefore never yields
-  a deterministically ready task. `ready_tasks` contains
+  a deterministically ready task.
+- An adopted `current_milestone` is a project-wide readiness review item: the
+  checker cannot parse the adopted milestone's state, so no native task is
+  deterministically ready while that authority is unresolved. When a native
+  milestone is active at the same time, the finding states explicitly that the
+  current-milestone authority is ambiguous. Other adopted milestones that are
+  not current do not block the native current milestone.
+  `ready_tasks` contains
   only deterministic native readiness; `review_required_tasks` separately lists
   tasks whose adopted/external or delegated authorization needs human review,
   including adopted tasks that have no native record at all (state `adopted`).

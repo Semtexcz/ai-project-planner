@@ -1220,11 +1220,20 @@ class PlannerCheck:
                         f"current_milestone {current!r} is not a milestone",
                     )
                 else:
+                    message = (
+                        "current milestone is adopted; confirm its active state and approval "
+                        "before relying on it"
+                    )
+                    if active_milestones:
+                        active_ids = ", ".join(record.id for record in active_milestones)
+                        message += (
+                            f"; native milestone(s) {active_ids} are also active, so the "
+                            "current milestone authority is ambiguous"
+                        )
                     self.report.manual(
                         "CURRENT_MILESTONE_EXTERNAL",
                         self.locator(self.config_path),
-                        "current milestone is adopted; confirm its active state and approval "
-                        "before relying on it",
+                        message,
                     )
             elif resolved is None or resolved[0] != "record" or self.ref_kind(resolved) != "milestone":
                 self.report.error(
@@ -1979,6 +1988,11 @@ class PlannerCheck:
         "UNSUPPORTED_SCHEMA",
     }
     GLOBAL_READINESS_WARNINGS = {"CURRENT_MILESTONE_UNSET", "PLACEHOLDER_CONFIG"}
+    # Config-level manual-review findings that can leave the project's authority
+    # ambiguous. CURRENT_MILESTONE_EXTERNAL means the index reference points at
+    # an unparsed adopted milestone, so its state cannot be reconciled with a
+    # native active milestone without a human decision.
+    GLOBAL_READINESS_REVIEWS = {"CURRENT_MILESTONE_EXTERNAL"}
     RELATED_READINESS_WARNINGS = {
         "TASK_REQUIREMENT_OUTSIDE_MILESTONE",
         "REQUIREMENT_NOT_DECOMPOSED",
@@ -1987,11 +2001,15 @@ class PlannerCheck:
         "PLACEHOLDER_VALUE",
         "CONTEXT_REVISION_STALE",
     }
+    # Context-local manual findings that make the linked task review_required.
+    # Config-locator rules belong in GLOBAL_READINESS_REVIEWS instead, because
+    # build_coverage() handles config findings before the context walk.
     READINESS_REVIEW_RULES = {
         "EXTERNAL_AUTHORITY_UNPARSED",
         "EXTERNAL_AUTHORITY_UNVERIFIED",
         "EXTERNAL_REFERENCE_UNVERIFIED",
         "EXTERNAL_CONTEXT",
+        "UNPARSED_MARKDOWN",
         "ADOPTED_OBJECTIVE_UNVERIFIED",
         "MILESTONE_OBJECTIVE_EXTERNAL",
         "PACKAGE_PARENT_UNVERIFIED",
@@ -2122,6 +2140,11 @@ class PlannerCheck:
                         and finding.severity == "warning"
                     ):
                         blockers.add(f"global: {finding.rule}")
+                    elif (
+                        finding.rule in self.GLOBAL_READINESS_REVIEWS
+                        and finding.severity == "manual_review"
+                    ):
+                        review.add(f"global: {finding.rule}")
                     continue
                 if (
                     finding.severity == "error"

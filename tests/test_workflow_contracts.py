@@ -844,3 +844,164 @@ def test_cross_record_objective_error_blocks_task_readiness(project):
     readiness = report["coverage"]["task_readiness"]["TASK-001"]
     assert readiness["ready"] is False
     assert "REQUIREMENT_OBJECTIVE_NOT_ACTIVE" in readiness["blockers"]
+
+
+def _add_adopted_milestone(project, milestone_id="MS-900", ref="docs/adopted-milestone.md"):
+    source = project.root / ref
+    source.parent.mkdir(parents=True, exist_ok=True)
+    source.write_text(
+        f"# {milestone_id}\n\nAdopted milestone, external state.\n", encoding="utf-8"
+    )
+    config_path = project.root / "planning/planner.yaml"
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    config["authorities"].append(
+        {
+            "kind": "milestone",
+            "id": milestone_id,
+            "owner": "product_owner",
+            "ref": ref,
+            "format": "markdown",
+        }
+    )
+    return config_path, config
+
+
+# ------------------------------------- adopted current milestone authority
+def test_adopted_current_milestone_with_native_active_milestone_blocks_readiness(tmp_path):
+    """A task in native MS-001 must not be ready while MS-900 is the adopted current
+    milestone. Two milestone authorities would otherwise claim current work."""
+    project = make_project(tmp_path / "adopted-current-conflict").write()
+    config_path, config = _add_adopted_milestone(project)
+    config["current_milestone"] = "MS-900"
+    config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+
+    result = run_checker(project.root)
+    report = json.loads(result.stdout)
+    findings = [
+        finding
+        for finding in report["findings"]
+        if finding["rule"] == "CURRENT_MILESTONE_EXTERNAL"
+    ]
+    assert findings
+    assert findings[0]["severity"] == "manual_review"
+    assert "MS-001" in findings[0]["message"]
+    assert "ambiguous" in findings[0]["message"]
+
+    readiness = report["coverage"]["task_readiness"]["TASK-001"]
+    assert readiness["state"] == "ready"
+    assert readiness["ready"] is False
+    assert readiness["review_required"] is True
+    assert "global: CURRENT_MILESTONE_EXTERNAL" in readiness["manual_review"]
+    assert report["coverage"]["ready_tasks"] == []
+    assert report["coverage"]["review_required_tasks"] == ["TASK-001"]
+
+    # NEXT selects only from ready_tasks, so ambiguous current-milestone
+    # authority yields no executable prompt.
+    text = run_checker(project.root, "text")
+    assert "ready tasks none" in text.stdout
+
+
+def test_adopted_milestone_that_is_not_current_does_not_block_native_readiness(tmp_path):
+    """Adopting a milestone by reference is legitimate while a different native
+    milestone is the authoritative current one."""
+    project = make_project(tmp_path / "adopted-future-milestone").write()
+    config_path, config = _add_adopted_milestone(project)
+    assert config["current_milestone"] == "MS-001"
+    config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+
+    report = json.loads(run_checker(project.root).stdout)
+    assert not [
+        finding
+        for finding in report["findings"]
+        if finding["rule"].startswith("CURRENT_MILESTONE")
+    ]
+    readiness = report["coverage"]["task_readiness"]["TASK-001"]
+    assert readiness["ready"] is True
+    assert readiness["review_required"] is False
+    assert report["coverage"]["ready_tasks"] == ["TASK-001"]
+
+
+def test_adopted_current_milestone_without_native_active_milestone_is_review_only(tmp_path):
+    """Pure adoption remains usable: no native task becomes ready, and the
+    adopted current milestone is a manual-review item rather than a structural
+    error."""
+    project = make_project(tmp_path / "adopted-only").write()
+    config_path, config = _add_adopted_milestone(project)
+    config["current_milestone"] = "MS-900"
+    config_path.write_text(yaml.safe_dump(config, sort_keys=False), encoding="utf-8")
+
+    milestone = load_frontmatter(project.root / "planning/milestones/MS-001.md")
+    milestone["execution"]["state"] = "proposed"
+    write_record(project.root / "planning/milestones/MS-001.md", milestone)
+    task = load_frontmatter(project.root / "planning/tasks/TASK-001.md")
+    task["execution"]["state"] = "draft"
+    write_record(project.root / "planning/tasks/TASK-001.md", task)
+
+    result = run_checker(project.root)
+    assert result.returncode == 0
+    report = json.loads(result.stdout)
+    assert report["coverage"]["ready_tasks"] == []
+    assert report["result"]["errors"] == 0
+    assert any(
+        finding["rule"] == "CURRENT_MILESTONE_EXTERNAL"
+        and finding["severity"] == "manual_review"
+        for finding in report["findings"]
+    )
+
+
+def test_unparsed_native_normative_context_requires_review(project):
+    """A normative context file that sits in a native authority collection but is
+    not a parsed record is an ambiguous authority, not verified content."""
+    notes = project.root / "planning/requirements/notes.md"
+    notes.write_text("# Unstructured notes\n", encoding="utf-8")
+    task = load_frontmatter(project.root / "planning/tasks/TASK-001.md")
+    task["scope"]["context"].append(
+        {
+            "ref": "planning/requirements/notes.md",
+            "authority": "requirement collection",
+            "revision": "working-tree",
+            "purpose": "Normative note that was never parsed as a record.",
+            "normative": True,
+        }
+    )
+    write_record(project.root / "planning/tasks/TASK-001.md", task)
+    decision = load_frontmatter(project.root / "planning/records/DEC-001.md")
+    for target in decision["scope"]["targets"]:
+        if target["record"] == "TASK-001":
+            target["scope_sha256"] = scope_digest(task["scope"])
+    write_record(project.root / "planning/records/DEC-001.md", decision)
+
+    report = json.loads(run_checker(project.root).stdout)
+    readiness = report["coverage"]["task_readiness"]["TASK-001"]
+    assert readiness["ready"] is False
+    assert readiness["review_required"] is True
+    assert "UNPARSED_MARKDOWN" in readiness["manual_review"]
+    assert report["coverage"]["ready_tasks"] == []
+
+
+def test_unparsed_native_background_context_does_not_require_review(project):
+    """The same unparsed file is non-blocking when the task marks it background."""
+    notes = project.root / "planning/requirements/notes.md"
+    notes.write_text("# Unstructured notes\n", encoding="utf-8")
+    task = load_frontmatter(project.root / "planning/tasks/TASK-001.md")
+    task["scope"]["context"].append(
+        {
+            "ref": "planning/requirements/notes.md",
+            "authority": "background",
+            "revision": "working-tree",
+            "purpose": "Non-normative note; not an obligation.",
+            "normative": False,
+        }
+    )
+    write_record(project.root / "planning/tasks/TASK-001.md", task)
+    decision = load_frontmatter(project.root / "planning/records/DEC-001.md")
+    for target in decision["scope"]["targets"]:
+        if target["record"] == "TASK-001":
+            target["scope_sha256"] = scope_digest(task["scope"])
+    write_record(project.root / "planning/records/DEC-001.md", decision)
+
+    report = json.loads(run_checker(project.root).stdout)
+    readiness = report["coverage"]["task_readiness"]["TASK-001"]
+    assert readiness["ready"] is True
+    assert "UNPARSED_MARKDOWN" not in readiness["manual_review"]
+    assert report["coverage"]["ready_tasks"] == ["TASK-001"]

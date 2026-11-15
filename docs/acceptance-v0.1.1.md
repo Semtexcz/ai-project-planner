@@ -40,9 +40,10 @@ uv run --locked pytest -m integration
 At the final recorded run:
 
 - `uv lock --check` passed.
-- Offline suite: **149 passed, 6 deselected** (146 passed at the acceptance
-  pass; this review added three identity-conflict regression tests).
-- Integration suite: **6 passed, 149 deselected**.
+- Offline suite: **154 passed, 6 deselected** (146 passed at the acceptance
+  pass; this review added three identity-conflict regression tests, and the
+  focused readiness review added five more).
+- Integration suite: **6 passed, 154 deselected**.
 - Integration coverage includes the pinned BMAD install/reinstall/resolver, the
   native Agent Skills validator, the OpenSpec boundary checks, the deployed
   PEP 723 checker entry point, and the pinned ai-devkit coexistence check.
@@ -349,7 +350,7 @@ change set):
 Alias-cycle and dangling-alias tests now also assert an empty `ready_tasks` and
 the corresponding global blocker.
 
-The full offline suite is 149 passed. The integration suite is 6 passed. The
+The full offline suite is 154 passed. The integration suite is 6 passed. The
 native Agent Skills validator accepts all six skills. The BMAD installer,
 reinstall and resolver checks pass. No test or live run modified a reference
 repository.
@@ -396,6 +397,132 @@ A synthetic, sanitized illustration of the INIT → PLAN → NEXT output shape i
 [`sample-init-plan-next.md`](sample-init-plan-next.md). It is labelled as an
 example, not as live-run or independent human acceptance evidence.
 
+## Focused readiness review — adopted current milestone vs native active milestone
+
+Date: 2026-11-15. Scope: focused correctness review of v0.1.1. No architecture
+change, no OpenAI model, no publication, tag, push or merge.
+
+### Reproduction
+
+A synthetic native project had `VIS-001` and `REQ-001` approved, `MS-001`
+active, and `TASK-001` ready and authorised by `DEC-001`. The review added an
+adopted milestone `MS-900` (`docs/adopted-milestone.md`, format `markdown`) and
+set `current_milestone: MS-900`, leaving native `MS-001` active.
+
+Pre-fix JSON from the checker:
+
+```text
+ready_tasks = ["TASK-001"]
+review_required_tasks = []
+TASK-001: ready=true, blockers=[], manual_review=[]
+findings: CURRENT_MILESTONE_EXTERNAL (manual_review) @ planning/planner.yaml
+exit 0
+```
+
+This was a false green: the configuration designated an unparsed adopted
+milestone as current while a different native milestone was active and
+authorised ready work. `CURRENT_MILESTONE_EXTERNAL` was printed but could not
+block deterministic readiness.
+
+### Root cause
+
+`check_states()` already emitted `CURRENT_MILESTONE_EXTERNAL` as
+`manual_review` when `current_milestone` resolved to an adopted milestone.
+`build_coverage()` mapped only config-locator findings whose rule was in
+`GLOBAL_READINESS_ERRORS` (severity `error`) or `GLOBAL_READINESS_WARNINGS`
+(severity `warning`); every other config-locator finding reached `continue`.
+`CURRENT_MILESTONE_EXTERNAL` was in neither set, so it never contributed to task
+readiness.
+
+### Fix
+
+- Added `GLOBAL_READINESS_REVIEWS = {"CURRENT_MILESTONE_EXTERNAL"}` and a branch
+  in `build_coverage()` that adds `global: CURRENT_MILESTONE_EXTERNAL` to the
+  task's `manual_review` set. An adopted current milestone therefore yields
+  `ready=false`, `review_required=true` and no `ready_tasks`; NEXT has nothing to
+  select.
+- The severity remains `manual_review` and exit remains `0`: the adopted
+  milestone is unparsed, so the checker cannot prove its state. A human must
+  reconcile the authority. This follows the existing adopted-source trust
+  boundary instead of pretending a parsed conflict.
+- The finding message now names the native active milestone(s) when both
+  authorities claim current work.
+- Adopted task entries, adopted references and non-current adopted milestones
+  are untouched. A non-current adopted milestone does not block the native
+  current milestone; an adopted-only project remains review-only.
+
+### Secondary review of readiness rule sets
+
+The review compared every reported finding class with the `ready_tasks` output.
+
+| Class | Example rules | Readiness behaviour |
+| --- | --- | --- |
+| Project-wide error | `DUPLICATE_ID`, `ID_COLLISION`, `DEPENDENCY_CYCLE`, `MULTIPLE_ACTIVE_MILESTONES`, `CURRENT_MILESTONE_UNKNOWN` | Blocks every task via `GLOBAL_READINESS_ERRORS`. |
+| Project-wide warning | `CURRENT_MILESTONE_UNSET`, `PLACEHOLDER_CONFIG` | Blocks every task via `GLOBAL_READINESS_WARNINGS`. |
+| Project-wide review | `CURRENT_MILESTONE_EXTERNAL` | **New:** makes every ready native task `review_required`. |
+| Record-local error | schema, reference, approval, evidence, package, criterion, gate errors | Blocks tasks whose context includes the record (task, parent milestone, requirement, strategy owner, approval decision or normative context). |
+| Context warning | `TASK_REQUIREMENT_OUTSIDE_MILESTONE`, `REQUIREMENT_NOT_DECOMPOSED`, `OBJECTIVE_UNCOVERED`, `UNKNOWN_REVIEWER`, `PLACEHOLDER_VALUE`, `CONTEXT_REVISION_STALE` | Blocks the linked task. |
+| Context manual review | adopted authority/reference, `APPROVAL_DELEGATED`, external context, `UNPARSED_MARKDOWN` | Makes the linked task `review_required`. |
+| Advisory | `APPROVAL_IDENTITY_UNVERIFIED`, `SEMANTIC_REVIEW_REQUIRED`, `EVIDENCE_EFFECTIVENESS`, `MILESTONE_ACHIEVEMENT_REVIEW`, `BASELINE_UNKNOWN`, `EVIDENCE_REVISION_STALE`, `DECISION_TARGET_DRIFT`, decision-level `DELEGATED_AUTHORIZATION`, background `CONTEXT_CONTENT_CHANGED`, missing views/authority roots, `SYMLINK_SKIPPED` | Printed, but does not block readiness. |
+
+A second gap was found and fixed: `UNPARSED_MARKDOWN` at a file inside a native
+authority collection was reported but was not linked into readiness when a task
+cited that file as normative context. It is now in `READINESS_REVIEW_RULES`, so
+the task is `review_required`; `normative: false` background context remains
+non-blocking. Advisory findings were deliberately not promoted: identity and
+consent cannot be authenticated, semantic review is inherently human, evidence
+revision distance does not prove ineffectiveness, and a different approval
+target digest is historical drift rather than a task-readiness defect.
+
+### Regression tests
+
+Five offline tests were added:
+
+- adopted current milestone plus a different native active milestone →
+  `CURRENT_MILESTONE_EXTERNAL`, `ready_tasks == []`,
+  `review_required_tasks == ["TASK-001"]`, text `ready tasks none`;
+- a non-current adopted milestone does not block the native current milestone →
+  `ready_tasks == ["TASK-001"]`;
+- an adopted current milestone with no native active milestone stays
+  review-only, exits `0`, and produces no ready task;
+- normative context pointing at unparsed Markdown in a native authority
+  collection → `UNPARSED_MARKDOWN` review, no ready task;
+- the same file marked `normative: false` → task stays ready.
+
+### Observed evidence
+
+```bash
+uv lock --check
+# passed
+
+uv run --locked pytest -m "not integration" -q
+# 154 passed, 6 deselected
+
+uv run --locked pytest -m integration -q
+# 6 passed, 154 deselected
+```
+
+Post-fix reproduction: `ready_tasks = []`, `review_required_tasks =
+["TASK-001"]`, `manual_review = ["global: CURRENT_MILESTONE_EXTERNAL"]`,
+`ready=false`, exit `0`. NEXT selects only from `ready_tasks`, so no executable
+prompt can be derived from the ambiguous state.
+
+### Remaining limitations
+
+- The checker cannot verify an adopted milestone's active state. It therefore
+  requires human review even when the ambiguity might later prove benign. Exit
+  `0` means "no proven structural error", not "ready"; NEXT must honour
+  `review_required_tasks`, not only the exit code.
+- `current_milestone` set to an alias of the active native milestone currently
+  produces a false `CURRENT_MILESTONE_MISMATCH` because the raw configured ID is
+  compared with the canonical active ID. This is a false blocker, not a false
+  green, and was recorded rather than changed in this focused review.
+- `change` record lifecycle errors remain AUDIT findings and do not directly
+  block tasks. An applied change is expected to invalidate affected approvals
+  through the scope digest, which is enforced.
+- No live NEXT session was run for this review. Verification is the offline
+  readiness output and regression tests; it is not independent human acceptance.
+
 ## Critical review findings
 
 ### Blocking (fixed in this pass)
@@ -414,6 +541,12 @@ example, not as live-run or independent human acceptance evidence.
    adoption showed `records_by_kind.task = 0`, `ready_tasks = []` and no
    per-task blockers for TASK-201..203. Fixed by explicit adopted-task readiness
    entries; regression test added.
+4. **A ready native task was deterministic while `current_milestone` pointed at
+   an adopted milestone and a different native milestone was active.** Evidence:
+   the pre-fix focused-review fixture yielded `ready_tasks = ["TASK-001"]` with
+   only a printed `CURRENT_MILESTONE_EXTERNAL` manual finding. Fixed by a
+   project-wide readiness review set; regression tests cover the negative,
+   non-current-adopted and adopted-only cases.
 
 ### Major (residual, accepted, or fixed during this pass)
 
@@ -455,6 +588,10 @@ example, not as live-run or independent human acceptance evidence.
 6. Adding `sha256` to an already approved task changes its `scope` digest and
    therefore requires re-approval. Records created before v0.1.1 should use
    `working-tree` or be re-approved when a content hash is added.
+7. `current_milestone` set to an alias of the active native milestone causes a
+   false `CURRENT_MILESTONE_MISMATCH` because the raw configured ID is compared
+   with the canonical active ID. It is a false blocker, not a false green, and is
+   recorded for a later bounded fix.
 
 ## Unverified capabilities
 
@@ -472,12 +609,13 @@ example, not as live-run or independent human acceptance evidence.
 
 The v0.1.1 candidate is **ready for human product acceptance, with the Major
 limitations above explicitly accepted**. The Blocking defects found by the live
-runs and by the post-acceptance identity-collision review are fixed and
-regression-tested, and the preflight local-checkout
-defect found in critical review is fixed and tested. The residual risks are the
-`--overwrite` bypass (mitigated by preflight and documentation), the BMAD
-non-software design-packet step, the cost of one-slice promotion, and the
-inherent inability to authenticate consent.
+runs, by the post-acceptance identity-collision review and by the focused
+current-milestone readiness review are fixed and regression-tested, and the
+preflight local-checkout defect found in critical review is fixed and tested.
+The residual risks are the `--overwrite` bypass (mitigated by preflight and
+documentation), the BMAD non-software design-packet step, the cost of one-slice
+promotion, the inherent inability to authenticate consent, and the documented
+alias/`change`-record limitations above.
 
 It is **not** ready for an unconditional release claim: a human must accept the
 Major limitations, decide whether the `--overwrite` bypass is acceptable for

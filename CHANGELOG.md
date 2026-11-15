@@ -45,6 +45,16 @@ adoption trial. No release tag has been published.
 
 ### Fixed
 
+- A task could be deterministically ready while `current_milestone` pointed at
+  an adopted milestone and a different native milestone was active.
+  `CURRENT_MILESTONE_EXTERNAL` is now a project-wide readiness review item, so
+  the ambiguous current-milestone authority yields `ready_tasks = []` and the
+  affected task moves to `review_required_tasks`. Non-current adopted milestones
+  and adopted-only projects keep their existing workflow.
+- A task whose normative context pointed at an unparsed Markdown file inside a
+  native authority collection could be reported deterministically ready. That
+  manual finding now links into task readiness when the context is normative;
+  background context remains non-blocking.
 - An adopted record that reused a native or embedded ID produced `ID_COLLISION`
   but left the colliding native task deterministically ready. Identity collisions
   now block every ready task while the native record and its scope are preserved;
